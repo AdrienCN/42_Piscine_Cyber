@@ -45,7 +45,7 @@ class Scorpion:
 
     def print_metadata(self):
         for img in self.img_lst:
-            exif = img._getexif()
+            exif = img.getexif()
 
             print("---------------Img Info Start -----------------", end="")
 
@@ -56,11 +56,13 @@ class Scorpion:
                 print(f"{attr.ljust(self.attr_max_len)}\t: {value}")
 
             print("\n--EXIF Attributes--")
-            exif_max_length = max(len(ExifTags.TAGS.get(tag, tag)) for tag in exif.keys())
             if exif:
+                exif_max_length = max(len(ExifTags.TAGS.get(tag, tag)) for tag in exif.keys())
                 for tag, value in exif.items():
                     tag_name = ExifTags.TAGS.get(tag, tag)  # Use human-readable tag names
                     print(f"{tag_name.ljust(exif_max_length)}\t: {value}")
+            else:
+                print("No EXIF found for this img")
 
             if getattr(exif, "DateTimeOriginal", None) is None:
                 creation_time = os.path.getctime(img.filename)

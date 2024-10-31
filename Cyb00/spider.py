@@ -90,7 +90,7 @@ def main():
 
     parser = argparse.ArgumentParser(
                         prog="spider",
-                        usage="./spider [-r -l [N] -p] url\nex: ./spider http://www.rando_suisse.ch/fr",
+                        usage="python3 spider [-r -l [N] -p] url\nex: python3 spider http://www.rando_suisse.ch/fr",
                         description="Download all images from a given URL")
     parser.add_argument("-r", action="store_false")
     parser.add_argument("-l", metavar="level", type=int, choices=[1, 2, 3, 4, 5], default="5")
