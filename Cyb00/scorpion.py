@@ -60,7 +60,7 @@ class Scorpion:
             if exif:
                 for tag, value in exif.items():
                     tag_name = ExifTags.TAGS.get(tag, tag)  # Use human-readable tag names
-                    print(f"{tag_name.ljust(exif_max_length)}: {value}")
+                    print(f"{tag_name.ljust(exif_max_length)}\t: {value}")
 
             if getattr(exif, "DateTimeOriginal", None) is None:
                 creation_time = os.path.getctime(img.filename)
