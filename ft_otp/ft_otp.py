@@ -1,6 +1,5 @@
 import re
 import os
-import random
 import argparse
 import hmac
 import time
@@ -9,12 +8,7 @@ import base64
 from Cryptodome.Cipher import AES
 from Cryptodome.Util.Padding import pad, unpad
 import subprocess
-
-# QUESTION
-
-# Implement QR code ?
-# Implement UX ?
-# Doc auto / integrer 
+import qrcode
 
 # ---------------------------
 # Global variable
@@ -137,21 +131,37 @@ def aes_256_decrypt(encrypted_key: bytes):
     key = unpad(decrypted_key, AES.block_size) 
     return key
 
-def gen_totp_code(key_file, tester: int):
+def gen_totp_code(key_file, tester: int = 0, qr_opt: bool = False ):
     
     encrypted_key = key_file.read()
     key = aes_256_decrypt(encrypted_key)
     
-    # Loop for option -t
-    for j in range(tester):
+    code = totp_algo(key)
+    pycode = pyotp.TOTP(base64.b32encode(key), digest=sha_mode)
+    oathtool_output = subprocess.check_output(f"oathtool --totp={sha_mode} {key.hex()}", shell=True).decode().strip()
+    print(f'{"Ft_OTP    :":<12} {code} <--')
+    print(f'{"Oathtool  :":<12} {oathtool_output}')
+    print(f'{"PyOTP     :":<12} {pycode.now()}\n')
     
-        code = totp_algo(key)
-        pycode = pyotp.TOTP(base64.b32encode(key), digest=sha_mode)
-        oathtool_output = subprocess.check_output(f"oathtool --totp={sha_mode} {key.hex()}", shell=True).decode().strip()
-        print(f'{"Ft_OTP    :":<12} {code} <--')
-        print(f'{"Oathtool  :":<12} {oathtool_output}')
-        print(f'{"PyOTP     :":<12} {pycode.now()}\n')
-        key = os.urandom(32)
+
+    # ---------------------------
+    # BONUS & TESTING
+    # ---------------------------
+
+    if qr_opt == True:
+        uri = pyotp.totp.TOTP(base64.b32encode(key)).provisioning_uri(name="adconsta@student.42lausanne.ch", issuer_name="adconsta_ft_otp")
+        qrcode.make(uri).save(f"QR_ft_otp_{sha_mode}.png")
+        print("QR_ft_otp_{sha_mode}.png")
+    
+    if tester > 0:
+        for j in range(tester):
+            code = totp_algo(key)
+            pycode = pyotp.TOTP(base64.b32encode(key), digest=sha_mode)
+            oathtool_output = subprocess.check_output(f"oathtool --totp={sha_mode} {key.hex()}", shell=True).decode().strip()
+            print(f'{"Ft_OTP    :":<12} {code} <--')
+            print(f'{"Oathtool  :":<12} {oathtool_output}')
+            print(f'{"PyOTP     :":<12} {pycode.now()}\n')
+            key = os.urandom(32)
 
     return
 
@@ -169,7 +179,9 @@ def argparsing():
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument("-g", dest="hex_file", type=argparse.FileType("r"), help="Generate key file from hex string")
     group.add_argument("-k", dest="key_file",type=argparse.FileType("rb"), help="Generate TOTP code from key file")
-    parser.add_argument("-t", dest="tester", type=int, default=1, choices=range(1,20), help="Test ft_otp againt PyOTP and Oathtool (must be between 1-20)")
+    parser.add_argument("-t", dest="tester", type=int, default=0, choices=range(0,20), help="Test ft_otp againt PyOTP and Oathtool (must be between 1-20)")
+    parser.add_argument("-q", dest="qr_opt", action="store_true", help="Generate QRcode")
+
     args = parser.parse_args()
     return args
 
@@ -180,11 +192,12 @@ def main():
     if args.tester and not args.key_file:
         print("Error : Option -t can only be used together with -k")
         return
+    
 
     if args.hex_file is not None:
         gen_totp_key(args.hex_file)
     elif args.key_file is not None:
-        gen_totp_code(args.key_file, args.tester)
+        gen_totp_code(args.key_file, args.tester, args.qr_opt)
     return
 
 
