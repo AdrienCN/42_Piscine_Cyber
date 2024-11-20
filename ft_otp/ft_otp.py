@@ -46,20 +46,21 @@ def aes_256_encrypt(data: bytes):
 
 def gen_totp_key(hex_file):
 
-    try :
+    key_filename = "ft_otp.key"
+    try:
         hex_str = hex_file.read()
-
         if check_key_format(hex_str) == False:
-            return print("Error : key must be 64 hexadecimal characters.")
+            return print("Error : gen_totp_key() : key must be 64 hexadecimal characters.")
         
         byte_str = hex_str.encode('utf-8')
         encrypted_data = aes_256_encrypt(byte_str)
         
-        with open('ft_otp.key', 'wb') as file:
+        with open(key_filename, 'wb') as file:
             file.write(encrypted_data)
+        print(f"Key was successfully saved in {key_filename}")
 
-    except Exception as e:
-        print(f"{e}")
+    except Exception as error:
+        print(f"Error : gen_totp_key() : {error}")
     return
 
 
@@ -72,7 +73,6 @@ def gen_totp_key(hex_file):
 # Create a pseudo-random Offset value
 # The value comes from the last 4 bits of the Sha Hash last byte see RFC 4226
 def get_offset(hash_b: bytes):
-
     
     hash_len = len(hash_b)
     last_byte = hash_b[hash_len - 1]
@@ -136,39 +136,43 @@ def aes_256_decrypt(encrypted_key: bytes):
 
 def gen_totp_code(key_file, tester: int = 0, qr_opt: bool = False ):
     
-    encrypted_key = key_file.read()
-    key = aes_256_decrypt(encrypted_key)
-    
-    # For evaluation purposes compare 42 ft_otp results to gold standards TOTP tools
-    code = totp_algo(key)
-    pycode = pyotp.TOTP(base64.b32encode(key), digest=sha_mode)
-    oathtool_output = subprocess.check_output(f"oathtool --totp={sha_mode} {key.hex()}", shell=True).decode().strip()
-    print(f'{"Ft_OTP    :":<12} {code} <--')
-    print(f'{"Oathtool  :":<12} {oathtool_output}')
-    print(f'{"PyOTP     :":<12} {pycode.now()}\n')
-    
+    try:
+        encrypted_key = key_file.read()
+        key = aes_256_decrypt(encrypted_key)
+        # For evaluation purposes compare 42 ft_otp results to gold standards TOTP tools
+        code = totp_algo(key)
 
-    # ---------------------------
-    # BONUS & TESTING
-    # ---------------------------
+        pycode = pyotp.TOTP(base64.b32encode(key), digest=sha_mode)
+        oathtool_output = subprocess.check_output(f"oathtool --totp={sha_mode} {key.hex()}", shell=True).decode().strip()
+        print(f'{"Ft_OTP    :":<12} {code} <--')
+        print(f'{"Oathtool  :":<12} {oathtool_output}')
+        print(f'{"PyOTP     :":<12} {pycode.now()}\n')
 
-    if qr_opt == True:
-        uri = pyotp.totp.TOTP(base64.b32encode(key)).provisioning_uri(name="adconsta@student.42lausanne.ch", issuer_name="adconsta_ft_otp")
-        qrcode.make(uri).save(f"QR_ft_otp_{sha_mode}.png")
-        print("QR_ft_otp_{sha_mode}.png")
-    
-    # Testing purposes only
-    # Re-iterate the ft_otp algo with different secret key and compare it with PyOTP and Oathtool
-    if tester > 0:
-        for j in range(tester):
 
-            key = os.urandom(32) # Generate new random key
-            code = totp_algo(key)
-            pycode = pyotp.TOTP(base64.b32encode(key), digest=sha_mode)
-            oathtool_output = subprocess.check_output(f"oathtool --totp={sha_mode} {key.hex()}", shell=True).decode().strip()
-            print(f'{"Ft_OTP    :":<12} {code} <--')
-            print(f'{"Oathtool  :":<12} {oathtool_output}')
-            print(f'{"PyOTP     :":<12} {pycode.now()}\n')
+        # ---------------------------
+        # BONUS & TESTING
+        # ---------------------------
+
+        if qr_opt == True:
+            uri = pyotp.totp.TOTP(base64.b32encode(key)).provisioning_uri(name="adconsta@student.42lausanne.ch", issuer_name="adconsta_ft_otp")
+            qrcode.make(uri).save(f"QR_ft_otp_{sha_mode}.png")
+            print("QR_ft_otp_{sha_mode}.png")
+
+        # Testing purposes only
+        # Re-iterate the ft_otp algo with different secret key and compare it with PyOTP and Oathtool
+        if tester > 0:
+            for j in range(tester):
+
+                key = os.urandom(32) # Generate new random key
+                code = totp_algo(key)
+                pycode = pyotp.TOTP(base64.b32encode(key), digest=sha_mode)
+                oathtool_output = subprocess.check_output(f"oathtool --totp={sha_mode} {key.hex()}", shell=True).decode().strip()
+                print(f'{"Ft_OTP    :":<12} {code} <--')
+                print(f'{"Oathtool  :":<12} {oathtool_output}')
+                print(f'{"PyOTP     :":<12} {pycode.now()}\n')
+
+    except Exception as error:
+        print(f"Error : gen_totp_code() : {error}")
 
     return
 
