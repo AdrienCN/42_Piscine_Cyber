@@ -5,26 +5,27 @@ import hmac
 import time
 import pyotp
 import base64
-from Cryptodome.Cipher import AES
-from Cryptodome.Util.Padding import pad, unpad
 import subprocess
 import qrcode
+from Cryptodome.Cipher import AES
+from Cryptodome.Util.Padding import pad, unpad
 
 # ---------------------------
 # Global variable
 # ---------------------------
 
-# ENcryption / DEcrytpion keyS
+    # ENcryption / DEcrytpion keyS
 aes_key = b'[\xfe\x02\x05\x8e\x8fk\xbe\x1e\xa2\xd1\xc5o\xa0\xef\xea\xcb\xca\xa7y`\x87\x1c\xc06\x17\x99U\x0b5\xcd\x9a'
 iv = b')9\xa2\x1e\xc2NBc\x11\xa2oC\x17t\xdb?'
 
-# Hash method
+    # Hash method
 sha_mode="sha512"
 
 
 # ---------------------------
 # Key generation
 # ---------------------------
+
 def check_key_format(hex_str: str):
         
         if (re.fullmatch(r'^[0-9a-fA-F]{64}$', hex_str)) is None:
@@ -69,9 +70,10 @@ def gen_totp_key(hex_file):
 # ---------------------------
 
 # Create a pseudo-random Offset value
+# The value comes from the last 4 bits of the Sha Hash last byte see RFC 4226
 def get_offset(hash_b: bytes):
 
-    # Get value from the last 4 bits of the HASH last byte
+    
     hash_len = len(hash_b)
     last_byte = hash_b[hash_len - 1]
     offset = last_byte & 0b1111
@@ -103,7 +105,7 @@ def hotp_algo(key : bytes, time_value: int):
     
     c = time_value.to_bytes(8, byteorder='big')
     hash_obj = hmac.new(key, c, sha_mode)
-    hash_b= hash_obj.digest() # Convert hash object to byte object
+    hash_b= hash_obj.digest() # Convert python hash object to python byte object
     s_bits = dynamic_truncation(hash_b)
     # Current totp is too long
     # This calcultation makes it 6 digit long
@@ -125,17 +127,19 @@ def totp_algo(k: bytes):
 
 
 def aes_256_decrypt(encrypted_key: bytes):
-    # Pad data to make it 16bytes block which is necessary for AES 256 encryption
+
     cipher = AES.new(aes_key, AES.MODE_CBC, iv)
     decrypted_key = cipher.decrypt(encrypted_key)
     key = unpad(decrypted_key, AES.block_size) 
     return key
+
 
 def gen_totp_code(key_file, tester: int = 0, qr_opt: bool = False ):
     
     encrypted_key = key_file.read()
     key = aes_256_decrypt(encrypted_key)
     
+    # For evaluation purposes compare 42 ft_otp results to gold standards TOTP tools
     code = totp_algo(key)
     pycode = pyotp.TOTP(base64.b32encode(key), digest=sha_mode)
     oathtool_output = subprocess.check_output(f"oathtool --totp={sha_mode} {key.hex()}", shell=True).decode().strip()
@@ -153,15 +157,18 @@ def gen_totp_code(key_file, tester: int = 0, qr_opt: bool = False ):
         qrcode.make(uri).save(f"QR_ft_otp_{sha_mode}.png")
         print("QR_ft_otp_{sha_mode}.png")
     
+    # Testing purposes only
+    # Re-iterate the ft_otp algo with different secret key and compare it with PyOTP and Oathtool
     if tester > 0:
         for j in range(tester):
+
+            key = os.urandom(32) # Generate new random key
             code = totp_algo(key)
             pycode = pyotp.TOTP(base64.b32encode(key), digest=sha_mode)
             oathtool_output = subprocess.check_output(f"oathtool --totp={sha_mode} {key.hex()}", shell=True).decode().strip()
             print(f'{"Ft_OTP    :":<12} {code} <--')
             print(f'{"Oathtool  :":<12} {oathtool_output}')
             print(f'{"PyOTP     :":<12} {pycode.now()}\n')
-            key = os.urandom(32)
 
     return
 
