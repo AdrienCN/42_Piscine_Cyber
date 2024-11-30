@@ -8,7 +8,25 @@ RUN     apt-get update  &&                      \
                         gpg                     \
                         apt-transport-https     \
                         openssh-server          \
+                        vim                     \
                         -y
+                        
+#RUN     mkdir -p /root/.ssh
+#COPY    .ssh_onion/onion_ed25519.pub    /root/.ssh/authorized_keys
+#RUN     useradd ssh_user_onion
+#RUN     chown ssh_user_onion /root/.ssh/authorized_keys
+#RUN     chmod 600 /root/.ssh/authorized_keys
+
+RUN     groupadd sshgroup && \
+	useradd -ms /bin/bash -g sshgroup sshuser && \
+	mkdir -p /home/sshuser/.ssh
+
+COPY    .ssh_onion/onion_ed25519.pub    /home/sshuser/.ssh/authorized_keys
+
+RUN     chown sshuser:sshgroup /home/sshuser/.ssh/authorized_keys && \
+	chmod 600 /home/sshuser/.ssh/authorized_keys
+
+RUN     service ssh start
 
 # INSTALL TOR :
 # Configure local repository to be able to download TOR see official docs -> "https://support.torproject.org/apt/tor-deb-repo/"
@@ -21,6 +39,7 @@ EOF
 
 # SETUP HIDDEN SERVICE :
 # Replace default config files by customs + starter scripts
+
 COPY    config/my_index.html            /var/www/html/index.nginx-debian.html
 COPY    config/my_torrc                 /etc/tor/torrc
 COPY    config/my_nginx.conf            /etc/nginx/nginx.conf
